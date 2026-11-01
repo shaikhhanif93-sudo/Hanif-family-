@@ -293,14 +293,29 @@ const INITIAL_NOTIFICATIONS: AppNotification[] = [
 
 const FamilyContext = createContext<FamilyContextType | null>(null);
 
-export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface FamilyProviderProps {
+  children: React.ReactNode;
+  /** Unique per signed-in account, so each account keeps its own data on this device. */
+  storageScope: string;
+  /** The signed-in person, used to start a fresh account. */
+  seedMember: FamilyMember;
+}
+
+export const FamilyProvider: React.FC<FamilyProviderProps> = ({ children, storageScope, seedMember }) => {
+  const initialMembers: FamilyMember[] = [seedMember];
+  // Inside this component, saved data is kept separately for each account
+  const localStorage = {
+    getItem: (key: string) => window.localStorage.getItem(`${key}__${storageScope}`),
+    setItem: (key: string, value: string) => window.localStorage.setItem(`${key}__${storageScope}`, value),
+    removeItem: (key: string) => window.localStorage.removeItem(`${key}__${storageScope}`),
+  };
   // Members state
   const [members, setMembers] = useState<FamilyMember[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_MEMBERS);
-      return saved ? JSON.parse(saved) : INITIAL_MEMBERS;
+      return saved ? JSON.parse(saved) : initialMembers;
     } catch {
-      return INITIAL_MEMBERS;
+      return initialMembers;
     }
   });
 
