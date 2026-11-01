@@ -56,7 +56,6 @@ const MainAppContent: React.FC = () => {
         return (
           <div className="py-6">
             <FamilyMembersPanel />
-          
           </div>
         );
       default:
