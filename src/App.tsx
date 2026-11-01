@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FamilyProvider, useFamily } from './context/FamilyContext';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
@@ -12,46 +12,28 @@ import { LocationTracingView } from './components/LocationTracingView';
 import { FamilyChatView } from './components/FamilyChatView';
 import { AdminDrawer } from './components/AdminDrawer';
 import { PendingApprovalScreen } from './components/PendingApprovalScreen';
-import { AuthModal } from './components/AuthModal';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthScreen } from './components/AuthScreen';
+import { AccountStatusScreen } from './components/AccountStatusScreen';
+import { SuperAdminPanel } from './components/SuperAdminPanel';
+import { FamilyMembersPanel } from './components/FamilyMembersPanel';
+import { FamilyMember } from './types/family';
 
 const MainAppContent: React.FC = () => {
   const { currentUser } = useFamily();
+  const { signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isAdminDrawerOpen, setIsAdminDrawerOpen] = useState(false);
 
-  // If user is not logged in
+  // Signing out from the old menu button also signs out of Firebase
+  useEffect(() => {
+    if (!currentUser) {
+      signOut();
+    }
+  }, [currentUser]);
+
   if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-4">
-        <AuthModal isOpen={true} onClose={() => {}} />
-      </div>
-    );
-  }
-
-  // If user is pending approval
-  if (currentUser.status === 'pending') {
-    return <PendingApprovalScreen />;
-  }
-
-  // If user is rejected
-  if (currentUser.status === 'rejected') {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white dark:bg-slate-900 rounded-3xl p-6 text-center shadow-xl border border-red-200">
-          <div className="text-4xl mb-3">⛔</div>
-          <h2 className="text-xl font-bold text-red-600">Access Declined</h2>
-          <p className="text-xs text-slate-500 mt-2">
-            Your login request was declined by the Family Admin. Please contact Shaikh Hanif.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold"
-          >
-            Try Again / Switch User
-          </button>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const renderActiveView = () => {
@@ -73,8 +55,8 @@ const MainAppContent: React.FC = () => {
       case 'admin':
         return (
           <div className="py-6">
+            <FamilyMembersPanel />
             <AdminDrawer isOpen={true} onClose={() => setActiveTab('dashboard')} />
-            <DashboardView onNavigateTab={setActiveTab} />
           </div>
         );
       default:
@@ -109,10 +91,66 @@ const MainAppContent: React.FC = () => {
   );
 };
 
-export default function App() {
+const DEFAULT_PERMISSIONS = {
+  canManageGroceries: true,
+  canEditMealPlan: true,
+  canBookGas: true,
+  canTraceLocations: true,
+  canManageCalendar: true,
+};
+
+const AppGate: React.FC = () => {
+  const { authUser, profile, isSuperAdmin, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center text-sm text-slate-500">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!authUser) return <AuthScreen />;
+  if (isSuperAdmin) return <SuperAdminPanel />;
+  if (!profile) return <AccountStatusScreen kind="no-profile" />;
+  if (profile.status === 'pending') return <AccountStatusScreen kind="pending" />;
+  if (profile.status === 'rejected') return <AccountStatusScreen kind="rejected" />;
+
+  const isHead = profile.role === 'head';
+  const seedMember: FamilyMember = {
+    id: profile.uid,
+    name: profile.name,
+    phone: profile.phone,
+    relation: profile.relation || (isHead ? 'Family Head' : 'Family Member'),
+    avatar: isHead ? '👨‍💼' : '👤',
+    color: isHead ? '#2563EB' : '#0D9488',
+    role: isHead ? 'admin' : 'member',
+    status: 'approved',
+    permissions: DEFAULT_PERMISSIONS,
+    joinedAt: new Date().toISOString(),
+    lastActive: 'Just now',
+    location: {
+      lat: 19.076,
+      lng: 72.8777,
+      address: 'Location not shared yet',
+      landmark: 'Not shared',
+      batteryLevel: 100,
+      timestamp: 'Just now',
+      isSharing: false,
+    },
+  };
+
   return (
-    <FamilyProvider>
+    <FamilyProvider key={profile.uid} storageScope={profile.uid} seedMember={seedMember}>
       <MainAppContent />
     </FamilyProvider>
+  );
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppGate />
+    </AuthProvider>
   );
 }
