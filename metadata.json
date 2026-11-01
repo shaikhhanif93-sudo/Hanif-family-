@@ -1,0 +1,6 @@
+{
+  "name": "FamilyNest - Shared Grocery, Calendar & Gas Tracker",
+  "description": "Coordinate groceries, weekly meal plans, shared calendars, gas cylinder refill alerts, live family location tracing, and group chat with read receipts.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
