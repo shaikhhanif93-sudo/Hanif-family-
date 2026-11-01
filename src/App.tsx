@@ -56,7 +56,7 @@ const MainAppContent: React.FC = () => {
         return (
           <div className="py-6">
             <FamilyMembersPanel />
-            <AdminDrawer isOpen={true} onClose={() => setActiveTab('dashboard')} />
+          
           </div>
         );
       default:
